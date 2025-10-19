@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aula en Calma – Modo Local</title>
+  <title>Aula en Calma – Panel de Clase</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
@@ -11,7 +11,7 @@
     .student-card { transition: all 0.2s ease-in-out; }
     .student-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
     .status-btn.active { transform: scale(1.1); box-shadow: 0 0 10px rgba(255,255,255,0.5); }
-    #modal.hidden, #main-app-screen.hidden, #loading-spinner.hidden { display: none; }
+    #modal.hidden, #main-app-screen.hidden { display: none; }
   </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900">
@@ -27,9 +27,9 @@
       <div>
         <label for="teacher-selector" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Profesor/a</label>
         <select id="teacher-selector" class="mt-1 block w-full p-2 border rounded-md dark:bg-gray-700 dark:text-white">
-          <option>Ana García (Tutora)</option>
-          <option>Carlos Pérez (Matemáticas)</option>
-          <option>Laura Martínez (Música)</option>
+          <option value="Ana García (Tutora)">Ana García (Tutora)</option>
+          <option value="Carlos Pérez (Matemáticas)">Carlos Pérez (Matemáticas)</option>
+          <option value="Laura Martínez (Música)">Laura Martínez (Música)</option>
         </select>
       </div>
       <div>
@@ -95,133 +95,123 @@
 </div>
 
 <script>
-  const modal = document.getElementById('modal');
-  const modalTitle = document.getElementById('modal-title');
-  const modalContent = document.getElementById('modal-content');
-  const modalCloseBtn = document.getElementById('modal-close-btn');
-  modalCloseBtn.onclick = () => modal.classList.add('hidden');
+const modal=document.getElementById('modal');
+const modalTitle=document.getElementById('modal-title');
+const modalContent=document.getElementById('modal-content');
+const modalCloseBtn=document.getElementById('modal-close-btn');
+modalCloseBtn.onclick=()=>modal.classList.add('hidden');
 
-  const showModal = (title, content) => {
-    modalTitle.textContent = title;
-    modalContent.innerHTML = content;
-    modal.classList.remove('hidden');
-  };
+const showModal=(title,content)=>{
+  modalTitle.textContent=title;
+  modalContent.innerHTML=content;
+  modal.classList.remove('hidden');
+};
 
-  const saveToLocal = () => localStorage.setItem('aulaEnCalmaData', JSON.stringify(dailyData));
-  const loadFromLocal = () => JSON.parse(localStorage.getItem('aulaEnCalmaData') || '{}');
+function saveData(){localStorage.setItem('aulaEnCalmaData',JSON.stringify(dailyData));}
+function loadData(){return JSON.parse(localStorage.getItem('aulaEnCalmaData')||'{}');}
 
-  let sessionData = {};
-  let dailyData = loadFromLocal();
+let sessionData={},dailyData=loadData();
 
-  document.getElementById('start-session-btn').addEventListener('click', () => {
-    sessionData = {
-      teacher: document.getElementById('teacher-selector').value,
-      class: document.getElementById('class-selector').value,
-      subject: document.getElementById('subject-selector').value
-    };
-    document.getElementById('selection-screen').classList.add('hidden');
-    document.getElementById('main-app-screen').classList.remove('hidden');
-    initializeAppUI();
+document.getElementById('start-session-btn').addEventListener('click',()=>{
+  const teacherSelect=document.getElementById('teacher-selector');
+  const savedTeacher=localStorage.getItem('aulaTeacher');
+  const teacher=savedTeacher||teacherSelect.value;
+  localStorage.setItem('aulaTeacher',teacher);
+  sessionData={teacher, class:document.getElementById('class-selector').value, subject:document.getElementById('subject-selector').value};
+  document.getElementById('selection-screen').classList.add('hidden');
+  document.getElementById('main-app-screen').classList.remove('hidden');
+  initUI();
+});
+
+function initUI(){
+  const info=document.getElementById('session-info');
+  info.textContent=`${sessionData.class} - ${sessionData.subject} (${sessionData.teacher})`;
+  document.getElementById('current-date').textContent=new Date().toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  if(!dailyData.students){dailyData.students=Array.from({length:25},(_,i)=>({id:`A${i+1}`,name:`Alumno ${i+1}`,subjects:{}}));}
+  renderCards();
+}
+
+function renderCards(){
+  const grid=document.getElementById('student-grid');
+  grid.innerHTML='';
+  dailyData.students.forEach((s,i)=>{
+    const subj=sessionData.subject;
+    if(!s.subjects[subj])s.subjects[subj]={attendance:null,behavior:0,mood:null};
+    const d=s.subjects[subj];
+    const card=document.createElement('div');
+    card.className='student-card bg-white dark:bg-gray-800 rounded-lg shadow p-4';
+    card.innerHTML=`
+      <div class="flex justify-between"><span class="font-bold">${s.name}</span><span class="text-xs">ID:${s.id}</span></div>
+      <p class="text-sm text-gray-500 mt-2">Asistencia</p>
+      <div class="flex justify-around">
+        <button data-i="${i}" data-a="attendance" data-v="present" class="status-btn text-green-500 text-xl"><i class="fas fa-check-circle"></i></button>
+        <button data-i="${i}" data-a="attendance" data-v="absent" class="status-btn text-red-500 text-xl"><i class="fas fa-times-circle"></i></button>
+        <button data-i="${i}" data-a="attendance" data-v="late" class="status-btn text-yellow-500 text-xl"><i class="fas fa-clock"></i></button>
+      </div>
+      <p class="text-sm text-gray-500 mt-2">Comportamiento</p>
+      <div class="flex justify-around items-center">
+        <button data-i="${i}" data-a="behavior" data-v="positive" class="text-blue-500 text-xl"><i class="fas fa-plus-circle"></i></button>
+        <span class="behavior font-bold">${d.behavior}</span>
+        <button data-i="${i}" data-a="behavior" data-v="negative" class="text-orange-500 text-xl"><i class="fas fa-minus-circle"></i></button>
+      </div>
+      <p class="text-sm text-gray-500 mt-2">Clima Emocional</p>
+      <div class="flex justify-around">
+        <button data-i="${i}" data-a="mood" data-v="happy" class="text-yellow-400 text-xl"><i class="fas fa-smile"></i></button>
+        <button data-i="${i}" data-a="mood" data-v="neutral" class="text-gray-400 text-xl"><i class="fas fa-meh"></i></button>
+        <button data-i="${i}" data-a="mood" data-v="sad" class="text-blue-400 text-xl"><i class="fas fa-frown"></i></button>
+      </div>`;
+    grid.appendChild(card);
   });
+}
 
-  function initializeAppUI() {
-    document.getElementById('session-info').textContent =
-      `${sessionData.class} - ${sessionData.subject} (${sessionData.teacher})`;
-    document.getElementById('current-date').textContent = new Date().toLocaleDateString('es-ES', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
-    if (!dailyData.students) {
-      dailyData.students = Array.from({ length: 25 }, (_, i) => ({
-        id: `A${i+1}`, name: `Alumno ${i+1}`, subjects: {}
-      }));
-    }
-    renderStudentCards();
+document.getElementById('student-grid').addEventListener('click',e=>{
+  const btn=e.target.closest('button');if(!btn)return;
+  const i=btn.dataset.i,a=btn.dataset.a,v=btn.dataset.v;
+  const s=dailyData.students[i];const subj=sessionData.subject;const d=s.subjects[subj];
+  switch(a){
+    case 'attendance':d.attendance=v;break;
+    case 'behavior':d.behavior+=v==='positive'?1:-1;break;
+    case 'mood':d.mood=v;break;
   }
+  saveData();
+  renderCards();
+});
 
-  function renderStudentCards() {
-    const grid = document.getElementById('student-grid');
-    grid.innerHTML = '';
-    dailyData.students.forEach((s, index) => {
-      const subjectKey = sessionData.subject;
-      if (!s.subjects[subjectKey]) s.subjects[subjectKey] = { attendance:null, behavior:0, mood:null, reports:0, bathroom:0 };
-      const d = s.subjects[subjectKey];
-      const card = document.createElement('div');
-      card.className = 'student-card bg-white dark:bg-gray-800 rounded-lg shadow p-4';
-      card.innerHTML = `
-        <div class="flex justify-between"><span class="font-bold">${s.name}</span><span class="text-xs">ID:${s.id}</span></div>
-        <p class="text-sm text-gray-500 mt-2">Asistencia</p>
-        <div class="flex justify-around">
-          <button data-i="${index}" data-a="attendance" data-v="present" class="status-btn text-green-500 text-xl"><i class="fas fa-check-circle"></i></button>
-          <button data-i="${index}" data-a="attendance" data-v="absent" class="status-btn text-red-500 text-xl"><i class="fas fa-times-circle"></i></button>
-          <button data-i="${index}" data-a="attendance" data-v="late" class="status-btn text-yellow-500 text-xl"><i class="fas fa-clock"></i></button>
-        </div>
-        <p class="text-sm text-gray-500 mt-2">Comportamiento</p>
-        <div class="flex justify-around items-center">
-          <button data-i="${index}" data-a="behavior" data-v="positive" class="text-blue-500 text-xl"><i class="fas fa-plus-circle"></i></button>
-          <span class="behavior font-bold">${d.behavior}</span>
-          <button data-i="${index}" data-a="behavior" data-v="negative" class="text-orange-500 text-xl"><i class="fas fa-minus-circle"></i></button>
-        </div>
-        <p class="text-sm text-gray-500 mt-2">Clima Emocional</p>
-        <div class="flex justify-around">
-          <button data-i="${index}" data-a="mood" data-v="happy" class="text-yellow-400 text-xl"><i class="fas fa-smile"></i></button>
-          <button data-i="${index}" data-a="mood" data-v="neutral" class="text-gray-400 text-xl"><i class="fas fa-meh"></i></button>
-          <button data-i="${index}" data-a="mood" data-v="sad" class="text-blue-400 text-xl"><i class="fas fa-frown"></i></button>
-        </div>`;
-      grid.appendChild(card);
+document.getElementById('generate-report-btn').onclick=()=>{
+  let html=`<p>Informe de ${sessionData.class}</p>`;
+  dailyData.students.forEach(s=>{
+    html+=`<div class='mt-2'><strong>${s.name}</strong> (${s.id})<ul>`;
+    Object.entries(s.subjects).forEach(([k,v])=>{
+      html+=`<li>${k}: Asist. ${v.attendance||'N/R'} | Comp. ${v.behavior} | Estado ${v.mood||'N/R'}</li>`;
     });
-  }
-
-  document.getElementById('student-grid').addEventListener('click', e => {
-    const btn = e.target.closest('button');
-    if (!btn) return;
-    const i = btn.dataset.i;
-    const a = btn.dataset.a;
-    const v = btn.dataset.v;
-    const s = dailyData.students[i];
-    const subj = sessionData.subject;
-    const d = s.subjects[subj];
-    switch (a) {
-      case 'attendance': d.attendance = v; break;
-      case 'behavior': d.behavior += v==='positive'?1:-1; break;
-      case 'mood': d.mood = v; break;
-    }
-    saveToLocal();
-    renderStudentCards();
+    html+='</ul></div>';
   });
+  showModal('Informe Diario',html);
+};
 
-  document.getElementById('generate-report-btn').onclick = () => {
-    let html = `<p>Informe diario de ${sessionData.class}</p>`;
-    dailyData.students.forEach(s=>{
-      html += `<div class='mt-2'><strong>${s.name}</strong> (${s.id})<ul>`;
-      Object.entries(s.subjects).forEach(([k,v])=>{
-        html += `<li>${k}: Asist. ${v.attendance||'N/R'} | Comp. ${v.behavior} | Estado ${v.mood||'N/R'}</li>`;
-      });
-      html += '</ul></div>';
+document.getElementById('calm-strategies-btn').onclick=()=>{
+  showModal('Estrategias Calmantes',`
+  <ul class="space-y-2">
+    <li><strong>Respiración cuadrada:</strong> Inhala 4s, mantén 4s, exhala 4s, pausa 4s.</li>
+    <li><strong>Técnica 5-4-3-2-1:</strong> Observa 5 cosas que veas, 4 que toques, 3 que oigas, 2 que huelas, 1 que saborees.</li>
+    <li><strong>Pausa activa:</strong> Estiramientos suaves y respiración lenta.</li>
+  </ul>`);
+};
+
+document.getElementById('export-csv-btn').onclick=()=>{
+  let csv='ID,Nombre,Asignatura,Asistencia,Comportamiento,Clima\n';
+  dailyData.students.forEach(s=>{
+    Object.entries(s.subjects).forEach(([k,v])=>{
+      csv+=`${s.id},${s.name},${k},${v.attendance||''},${v.behavior},${v.mood||''}\n`;
     });
-    showModal('Informe Diario', html);
-  };
-
-  document.getElementById('calm-strategies-btn').onclick = ()=>{
-    showModal('Estrategias Calmantes', `
-      <ul class="space-y-2">
-        <li><strong>Respiración cuadrada:</strong> Inhala 4s, mantén 4s, exhala 4s, pausa 4s.</li>
-        <li><strong>Técnica 5-4-3-2-1:</strong> 5 cosas que ves, 4 que tocas, 3 que oyes, 2 que hueles, 1 que saboreas.</li>
-        <li><strong>Pausa activa:</strong> Estiramientos suaves y respiración lenta.</li>
-      </ul>`);
-  };
-
-  document.getElementById('export-csv-btn').onclick = ()=>{
-    let csv = 'ID,Nombre,Asignatura,Asistencia,Comportamiento,Clima\n';
-    dailyData.students.forEach(s=>{
-      Object.entries(s.subjects).forEach(([k,v])=>{
-        csv += `${s.id},${s.name},${k},${v.attendance||''},${v.behavior},${v.mood||''}\n`;
-      });
-    });
-    const blob = new Blob([csv],{type:'text/csv'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'informe_aula_en_calma.csv';
-    a.click();
-  };
+  });
+  const blob=new Blob([csv],{type:'text/csv'});
+  const link=document.createElement('a');
+  link.href=URL.createObjectURL(blob);
+  link.download='informe_aula_en_calma.csv';
+  link.click();
+  alert('✅ Informe CSV exportado correctamente');
+};
 </script>
-
 </body>
 </html>
